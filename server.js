@@ -15,8 +15,9 @@ wss.on("connection", (ws) => {
         users.set(data.username, { id: userId, socket: ws });
         ws.username = data.username;
         console.log(`user ${data.username} registered`);
+        ws.send(JSON.stringify({ type: "registerSuccess" }));
       } else {
-        ws.send(JSON.stringify({ error: "username already taken" }));
+        ws.send(JSON.stringify({ error: "username already taken", code: 409 }));
       }
     }
 
@@ -32,7 +33,7 @@ wss.on("connection", (ws) => {
         );
       }
       if (!users.has(receiver)) {
-        ws.send(JSON.stringify({ error: "receiver doesnt exist" }));
+        ws.send(JSON.stringify({ error: "receiver doesnt exist", code: 404 }));
       } else {
         const receiverSocket = users.get(receiver).socket;
         receiverSocket.send(

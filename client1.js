@@ -21,25 +21,54 @@ function ask(question) {
   return new Promise((resolve) => rl.question(question, resolve));
 }
 
-async function main() {
-  const username = await ask("Enter your username: ");
-  const chatWith = await ask("Enter receiver username: ");
+function registerUser() {
+  return new Promise(async (resolve) => {
+    const handler = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "registerSuccess") {
+        socket.removeEventListener("message", handler);
 
-  socket.send(
-    JSON.stringify({
-      type: "register",
-      username: username,
-    }),
+        resolve();
+      }
+      if (data.error && data.code === 409) {
+        console.log("username already taken");
+        askUsername();
+      }
+    };
+    socket.addEventListener("message", handler);
+    askUsername();
+    async function askUsername() {
+      const username = await ask("Enter your username: ");
+      socket.send(
+        JSON.stringify({
+          type: "register",
+          username: username,
+        }),
+      );
+    }
+  });
+}
+
+async function main() {
+  await registerUser();
+  console.log(
+    "Username registered. Remember messages are typed in the format <username>: <message>",
   );
 
   socket.addEventListener("message", (event) => {
     const data = JSON.parse(event.data);
-    console.log(`${data.from}: ${data.message}`);
+    if (data.error && data.code === 404) {
+      console.log("receiver not found");
+    } else {
+      console.log(`(Received)  ${data.from}: ${data.message}`);
+    }
   });
 
   rl.on("line", (line) => {
     if (!line.trim()) return;
-    sendMessage(chatWith, line);
+    let chatWith = line.split(":")[0].trim();
+    let message = line.split(":")[1].trim();
+    sendMessage(chatWith, message);
   });
 }
 
